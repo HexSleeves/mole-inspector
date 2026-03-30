@@ -1,4 +1,7 @@
-import { BrowserWindow, Updater } from "electrobun/bun";
+import { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
+
+import { getMonitoringSnapshot } from "./monitoring";
+import type { MonitoringRpcSchema } from "../shared/monitoring";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -23,15 +26,28 @@ async function getMainViewUrl(): Promise<string> {
 // Create the main application window
 const url = await getMainViewUrl();
 
+const monitoringRpc = BrowserView.defineRPC<MonitoringRpcSchema>({
+	handlers: {
+		requests: {
+			getMonitoringSnapshot,
+		},
+		messages: {},
+	},
+	maxRequestTime: 15_000,
+});
+
 const mainWindow = new BrowserWindow({
-	title: "React + Tailwind + Vite",
+	title: "macOS System Optimizer",
 	url,
+	rpc: monitoringRpc,
 	frame: {
-		width: 900,
-		height: 700,
+		width: 1_100,
+		height: 760,
 		x: 200,
-		y: 200,
+		y: 120,
 	},
 });
 
-console.log("React Tailwind Vite app started!");
+void mainWindow;
+
+console.log("macOS System Optimizer monitoring foundation started!");

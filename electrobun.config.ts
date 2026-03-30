@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
   app: {
-    name: "react-tailwind-vite",
-    identifier: "reacttailwindvite.electrobun.dev",
+			name: "macOS System Optimizer",
+			identifier: "dev.electrobun.macossystemoptimizer",
     version: "0.0.1",
   },
   build: {

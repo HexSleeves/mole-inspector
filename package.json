@@ -1,12 +1,13 @@
 {
-	"name": "electrobun-react-tailwind-vite",
+	"name": "macos-system-optimizer",
 	"version": "1.0.0",
-	"description": "Electrobun app with React, Tailwind CSS, and Vite HMR",
+	"description": "Electrobun desktop utility for real-time macOS health monitoring",
 	"scripts": {
 		"start": "vite build && electrobun dev",
 		"dev": "electrobun dev --watch",
 		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
 		"hmr": "vite --port 5173",
+		"build": "vite build && electrobun build",
 		"build:canary": "vite build && electrobun build --env=canary"
 	},
 	"dependencies": {
@@ -19,6 +20,7 @@
 		"@types/bun": "latest",
 		"@types/react": "^18.3.12",
 		"@types/react-dom": "^18.3.1",
+		"@types/three": "^0.183.1",
 		"@vitejs/plugin-react": "^4.3.4",
 		"autoprefixer": "^10.4.20",
 		"concurrently": "^9.1.0",
