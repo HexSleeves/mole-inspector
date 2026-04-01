@@ -5,6 +5,7 @@ import {
 	MOLE_WORKFLOWS,
 	type MoleCommandResult,
 	type MoleWorkflowDefinition,
+	type MoleWorkflowId,
 	type MoleWorkflowMode,
 } from "../shared/mole";
 import { Badge } from "./components/ui/badge";
@@ -18,9 +19,18 @@ import {
 } from "./components/ui/card";
 import { monitoringBridge } from "./monitoring";
 
+type ActiveMoleExecution = {
+	workflowId: MoleWorkflowId;
+	mode: MoleWorkflowMode;
+	status: "queued" | "running";
+	queuedAt: string;
+};
+
 export function MoleWorkflowsPanel() {
 	const [lastResult, setLastResult] = useState<MoleCommandResult | null>(null);
 	const [history, setHistory] = useState<MoleCommandResult[]>([]);
+	const [activeExecution, setActiveExecution] =
+		useState<ActiveMoleExecution | null>(null);
 
 	const statusQuery = useQuery({
 		queryKey: ["mole-status"],
@@ -30,22 +40,56 @@ export function MoleWorkflowsPanel() {
 	});
 
 	const workflowMutation = useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workflowId,
 			mode,
+			queuedAt,
 		}: {
 			workflowId: MoleWorkflowDefinition["id"];
 			mode: MoleWorkflowMode;
-		}) => monitoringBridge.runMoleWorkflow({ workflowId, mode }),
+			queuedAt: string;
+		}) => {
+			setActiveExecution({
+				workflowId,
+				mode,
+				status: "running",
+				queuedAt,
+			});
+			return monitoringBridge.runMoleWorkflow({ workflowId, mode });
+		},
 		onSuccess: (result) => {
+			setActiveExecution(null);
 			setLastResult(result);
 			setHistory((previous) => [result, ...previous].slice(0, 4));
 			void statusQuery.refetch();
+		},
+		onError: () => {
+			setActiveExecution(null);
 		},
 	});
 
 	const availability = statusQuery.data?.availability;
 	const isInstalled = availability?.isInstalled ?? false;
+	const workflowIsBusy = activeExecution !== null || workflowMutation.isPending;
+	const activeStatusLabel =
+		activeExecution?.status === "queued" ? "Command queued…" : "Command running…";
+
+	const queueWorkflow = (
+		workflowId: MoleWorkflowDefinition["id"],
+		mode: MoleWorkflowMode,
+	) => {
+		workflowMutation.reset();
+		const queuedExecution: ActiveMoleExecution = {
+			workflowId,
+			mode,
+			status: "queued",
+			queuedAt: new Date().toISOString(),
+		};
+		setActiveExecution(queuedExecution);
+		window.setTimeout(() => {
+			workflowMutation.mutate(queuedExecution);
+		}, 0);
+	};
 
 	return (
 		<Card>
@@ -63,8 +107,8 @@ export function MoleWorkflowsPanel() {
 								Health {formatHealth(statusQuery.data.summary.healthScore)}
 							</Badge>
 						) : null}
-						{workflowMutation.isPending ? (
-							<Badge variant="secondary">Command running…</Badge>
+							{activeExecution ? (
+								<Badge variant="secondary">{activeStatusLabel}</Badge>
 						) : null}
 					</div>
 					<div>
@@ -79,7 +123,7 @@ export function MoleWorkflowsPanel() {
 					size="sm"
 					variant="outline"
 					onClick={() => void statusQuery.refetch()}
-					disabled={statusQuery.isFetching || workflowMutation.isPending}
+						disabled={statusQuery.isFetching || workflowIsBusy}
 				>
 					{statusQuery.isFetching ? "Refreshing Mole…" : "Refresh Mole status"}
 				</Button>
@@ -140,9 +184,13 @@ export function MoleWorkflowsPanel() {
 						<WorkflowCard
 							key={workflow.id}
 							workflow={workflow}
-							busy={workflowMutation.isPending}
+								busy={workflowIsBusy}
 							disabled={!isInstalled}
-							running={workflowMutation.variables?.workflowId === workflow.id}
+								status={
+									activeExecution?.workflowId === workflow.id
+										? activeExecution.status
+										: null
+								}
 							onRun={(mode) => {
 								if (
 									mode === "apply" &&
@@ -151,7 +199,7 @@ export function MoleWorkflowsPanel() {
 									return;
 								}
 
-								workflowMutation.mutate({ workflowId: workflow.id, mode });
+									queueWorkflow(workflow.id, mode);
 							}}
 						/>
 					))}
@@ -163,6 +211,10 @@ export function MoleWorkflowsPanel() {
 						message={`Unable to start the Mole command: ${getErrorMessage(workflowMutation.error)}`}
 					/>
 				) : null}
+
+					{activeExecution ? (
+						<ExecutionStatusPanel execution={activeExecution} />
+					) : null}
 
 				{lastResult ? <CommandResultPanel result={lastResult} /> : null}
 
@@ -203,13 +255,13 @@ function WorkflowCard({
 	workflow,
 	busy,
 	disabled,
-	running,
+	status,
 	onRun,
 }: {
 	workflow: MoleWorkflowDefinition;
 	busy: boolean;
 	disabled: boolean;
-	running: boolean;
+	status: ActiveMoleExecution["status"] | null;
 	onRun: (mode: MoleWorkflowMode) => void;
 }) {
 	return (
@@ -229,7 +281,11 @@ function WorkflowCard({
 						{workflow.description}
 					</p>
 				</div>
-				{running && busy ? <Badge variant="secondary">Running…</Badge> : null}
+				{status ? (
+					<Badge variant="secondary">
+						{status === "queued" ? "Queued…" : "Running…"}
+					</Badge>
+				) : null}
 			</div>
 
 			<div className="mt-3 flex flex-wrap gap-2">
@@ -254,7 +310,38 @@ function WorkflowCard({
 	);
 }
 
-function CommandResultPanel({ result }: { result: MoleCommandResult }) {
+export function ExecutionStatusPanel({
+	execution,
+}: {
+	execution: ActiveMoleExecution;
+}) {
+	const command = formatWorkflowCommand(execution.workflowId, execution.mode);
+	const message =
+		execution.status === "queued"
+			? `Queued ${labelMode(execution.mode)} command. Starting ${command} now.`
+			: `Running ${command}. Mole may finish without terminal output for some apply commands.`;
+
+	return (
+		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<p className="text-base font-medium text-slate-50">
+						Current execution · {labelWorkflow(execution.workflowId)} ·{" "}
+						{labelMode(execution.mode)}
+					</p>
+					<p className="text-sm text-slate-500">{command}</p>
+				</div>
+				<Badge variant="secondary">
+					{execution.status === "queued" ? "Queued" : "Running"}
+				</Badge>
+			</div>
+
+			<InlineMessage variant="success" message={message} />
+		</div>
+	);
+}
+
+export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 	return (
 		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -269,7 +356,7 @@ function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 					</p>
 				</div>
 				<Badge variant={result.ok ? "success" : "destructive"}>
-					{result.ok ? "success" : "failed"}
+						{result.ok ? "completed" : "failed"}
 				</Badge>
 			</div>
 
@@ -289,12 +376,19 @@ function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				<InlineMessage variant="destructive" message={result.error} />
 			) : null}
 
+				{result.ok && result.outputState === "empty" ? (
+					<InlineMessage
+						variant="success"
+						message="Command completed successfully and did not emit stdout or stderr for this run."
+					/>
+				) : null}
+
 			<div className="space-y-2">
 				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-					Command output
+						Terminal output
 				</p>
 				<pre className="max-h-72 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 text-slate-200 whitespace-pre-wrap wrap-break-word">
-					{result.combinedOutput || "No command output was captured."}
+						{result.combinedOutput || "No terminal output for this run."}
 				</pre>
 			</div>
 		</div>
@@ -305,7 +399,7 @@ function InlineMessage({
 	variant,
 	message,
 }: {
-	variant: "warning" | "destructive";
+	variant: "warning" | "destructive" | "success";
 	message: string;
 }) {
 	return (
@@ -313,6 +407,8 @@ function InlineMessage({
 			className={
 				variant === "warning"
 					? "rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100"
+					: variant === "success"
+						? "rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm leading-5 text-emerald-100"
 					: "rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm leading-5 text-rose-100"
 			}
 		>
@@ -369,6 +465,19 @@ function labelWorkflow(workflowId: MoleCommandResult["workflowId"]) {
 
 function labelMode(mode: MoleWorkflowMode) {
 	return mode === "preview" ? "preview" : "apply";
+}
+
+function formatWorkflowCommand(
+	workflowId: MoleWorkflowId,
+	mode: MoleWorkflowMode,
+) {
+	const workflow = MOLE_WORKFLOWS.find((candidate) => candidate.id === workflowId);
+	if (!workflow) {
+		return `mo ${workflowId}`;
+	}
+
+	const args = mode === "preview" ? workflow.previewArgs : workflow.runArgs;
+	return ["mo", ...args].join(" ");
 }
 
 function formatTime(value: string) {

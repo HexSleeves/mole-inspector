@@ -5,6 +5,7 @@ export const MOLE_COMMAND_TIMEOUT_MS = 120_000;
 
 export type MoleWorkflowId = "clean" | "optimize" | "installer" | "purge";
 export type MoleWorkflowMode = "preview" | "apply";
+export type MoleCommandOutputState = "captured" | "empty";
 
 export interface MoleAvailability {
 	isInstalled: boolean;
@@ -117,6 +118,7 @@ export interface MoleCommandResult {
 	stdout: string;
 	stderr: string;
 	combinedOutput: string;
+	outputState: MoleCommandOutputState;
 	error: string | null;
 }
 

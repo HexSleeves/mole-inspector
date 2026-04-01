@@ -240,6 +240,7 @@ async function executeMoCommand(
 			stdout: sanitizedStdout,
 			stderr: sanitizedStderr,
 			combinedOutput,
+			outputState: combinedOutput ? "captured" : "empty",
 			error:
 				exitCode === 0
 					? null
@@ -277,6 +278,7 @@ async function executeMoCommand(
 			stdout: sanitizedStdout,
 			stderr: sanitizedStderr,
 			combinedOutput,
+			outputState: combinedOutput ? "captured" : "empty",
 			error: message,
 		};
 	}
@@ -301,6 +303,7 @@ function buildFailedResult(
 		stdout: "",
 		stderr: "",
 		combinedOutput: error,
+		outputState: error ? "captured" : "empty",
 		error,
 	};
 }

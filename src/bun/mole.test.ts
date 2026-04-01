@@ -87,6 +87,30 @@ test("runMoleWorkflowWith uses the dry-run command for preview mode", async () =
 	expect(result.combinedOutput).toBe("preview ok");
 });
 
+test("runMoleWorkflowWith marks successful apply runs with no terminal output", async () => {
+	const result = await runMoleWorkflowWith(
+		{
+			workflowId: "optimize",
+			mode: "apply",
+		},
+		{
+			which: () => "/opt/homebrew/bin/mo",
+			spawn: () => ({
+				exited: Promise.resolve(0),
+				stdout: textStream(""),
+				stderr: textStream(""),
+				kill: () => {},
+			}),
+			now: fixedClock(),
+			timeoutMs: 5_000,
+		},
+	);
+
+	expect(result.ok).toBe(true);
+	expect(result.combinedOutput).toBe("");
+	expect(result.outputState).toBe("empty");
+});
+
 function fixedClock() {
 	let tick = 0;
 	return () => new Date(`2026-03-30T23:10:0${tick++}.000Z`);
