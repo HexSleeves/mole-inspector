@@ -1,26 +1,38 @@
 import { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
-
-import { getMonitoringSnapshot } from "./monitoring";
 import type { MonitoringRpcSchema } from "../shared/monitoring";
+import {
+	DEV_SERVER_URL,
+	MAIN_VIEW_URL,
+	resolveMainViewUrl,
+} from "./mainViewUrl";
+import { getMoleStatus, runMoleWorkflow } from "./mole";
+import { getMonitoringSnapshot } from "./monitoring";
 
-const DEV_SERVER_PORT = 5173;
-const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
+const ENABLE_HMR = process.env.ELECTROBUN_USE_HMR === "1";
 
-// Check if Vite dev server is running for HMR
 async function getMainViewUrl(): Promise<string> {
 	const channel = await Updater.localInfo.channel();
-	if (channel === "dev") {
-		try {
-			await fetch(DEV_SERVER_URL, { method: "HEAD" });
-			console.log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
-			return DEV_SERVER_URL;
-		} catch {
-			console.log(
-				"Vite dev server not running. Run 'bun run dev:hmr' for HMR support.",
-			);
-		}
+	const url = await resolveMainViewUrl({
+		channel,
+		enableHmr: ENABLE_HMR,
+	});
+
+	if (url === DEV_SERVER_URL) {
+		console.log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
+		return url;
 	}
-	return "views://mainview/index.html";
+
+	if (channel === "dev" && ENABLE_HMR) {
+		console.log(
+			`HMR requested, but ${DEV_SERVER_URL} did not match this app. Falling back to ${MAIN_VIEW_URL}.`,
+		);
+	} else if (channel === "dev") {
+		console.log(
+			`Using bundled renderer at ${MAIN_VIEW_URL}. Run 'bun run dev:hmr' for explicit HMR.`,
+		);
+	}
+
+	return url;
 }
 
 // Create the main application window
@@ -30,6 +42,8 @@ const monitoringRpc = BrowserView.defineRPC<MonitoringRpcSchema>({
 	handlers: {
 		requests: {
 			getMonitoringSnapshot,
+			getMoleStatus,
+			runMoleWorkflow,
 		},
 		messages: {},
 	},

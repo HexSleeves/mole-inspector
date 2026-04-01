@@ -1,3 +1,9 @@
+import type {
+	MoleCommandResult,
+	MoleStatusSnapshot,
+	MoleWorkflowRequest,
+} from "./mole";
+
 export const DEFAULT_PROCESS_LIMIT = 8;
 export const MONITORING_POLL_INTERVAL_MS = 3_000;
 
@@ -110,12 +116,20 @@ export type MonitoringRpcSchema = {
 				params: MonitoringRequest;
 				response: MonitoringSnapshot;
 			};
+			getMoleStatus: {
+				params: Record<string, never>;
+				response: MoleStatusSnapshot;
+			};
+			runMoleWorkflow: {
+				params: MoleWorkflowRequest;
+				response: MoleCommandResult;
+			};
 		};
-		messages: {};
+		messages: Record<string, never>;
 	};
 	webview: {
-		requests: {};
-		messages: {};
+		requests: Record<string, never>;
+		messages: Record<string, never>;
 	};
 };
 

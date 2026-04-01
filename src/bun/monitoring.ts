@@ -1,8 +1,8 @@
 import * as si from "systeminformation";
 
 import {
-	DEFAULT_PROCESS_LIMIT,
 	type CpuSnapshot,
+	DEFAULT_PROCESS_LIMIT,
 	type DiskSnapshot,
 	type MemorySnapshot,
 	type MetricResult,

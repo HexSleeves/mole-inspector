@@ -5,6 +5,11 @@ import type {
 	MonitoringRpcSchema,
 	MonitoringSnapshot,
 } from "../shared/monitoring";
+import type {
+	MoleCommandResult,
+	MoleStatusSnapshot,
+	MoleWorkflowRequest,
+} from "../shared/mole";
 
 declare global {
 	interface Window {
@@ -12,6 +17,10 @@ declare global {
 			getMonitoringSnapshot: (
 				request?: MonitoringRequest,
 			) => Promise<MonitoringSnapshot>;
+			getMoleStatus: () => Promise<MoleStatusSnapshot>;
+			runMoleWorkflow: (
+				request: MoleWorkflowRequest,
+			) => Promise<MoleCommandResult>;
 		};
 	}
 }
@@ -35,5 +44,8 @@ function createMonitoringBridge() {
 	return {
 		getMonitoringSnapshot: (request: MonitoringRequest = {}) =>
 			rpc.requestProxy.getMonitoringSnapshot(request),
+		getMoleStatus: () => rpc.requestProxy.getMoleStatus({}),
+		runMoleWorkflow: (request: MoleWorkflowRequest) =>
+			rpc.requestProxy.runMoleWorkflow(request),
 	};
 }
