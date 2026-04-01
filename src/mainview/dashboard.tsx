@@ -27,6 +27,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "./components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { MoleWorkflowsPanel } from "./mole-workflows";
 import { monitoringBridge } from "./monitoring";
 import {
@@ -77,10 +78,10 @@ export function Dashboard() {
 
 	return (
 		<main className="min-h-screen">
-			<div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8">
+			<div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-5 lg:px-6 lg:py-6">
 				<Card>
-					<CardHeader className="gap-6 lg:flex-row lg:items-end lg:justify-between">
-						<div className="space-y-4">
+					<CardHeader className="gap-4 px-5 pb-5 pt-5 lg:flex-row lg:items-start lg:justify-between">
+						<div className="space-y-3">
 							<div className="flex flex-wrap items-center gap-2">
 								<Badge variant="success">Wave 2 dashboard</Badge>
 								<Badge variant={liveUpdatesEnabled ? "secondary" : "warning"}>
@@ -101,17 +102,17 @@ export function Dashboard() {
 								) : null}
 							</div>
 							<div className="space-y-2">
-								<h1 className="text-4xl font-semibold tracking-tight text-white">
+								<h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
 									macOS System Optimizer
 								</h1>
-								<p className="max-w-3xl text-base leading-7 text-slate-300">
+								<p className="max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
 									A real-time desktop dashboard for CPU, memory, disk, process,
 									and network health. The renderer now uses Tailwind CSS v4,
 									Zustand, TanStack Query, and shadcn-style UI primitives.
 								</p>
 							</div>
 						</div>
-						<div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+						<div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/70 p-3.5 sm:p-4">
 							<div className="flex flex-wrap gap-2">
 								<Button
 									size="sm"
@@ -131,7 +132,7 @@ export function Dashboard() {
 									Refresh now
 								</Button>
 							</div>
-							<div className="mt-4 grid gap-4 sm:grid-cols-2">
+							<div className="mt-3 grid gap-3 sm:grid-cols-2">
 								<ControlGroup label="Refresh cadence">
 									{REFRESH_INTERVAL_OPTIONS.map((intervalMs) => (
 										<Button
@@ -180,24 +181,66 @@ export function Dashboard() {
 							))}
 						</section>
 
-						<section className="grid gap-6 xl:grid-cols-2">
-							<CpuPanel metric={snapshot.cpu} />
-							<MemoryPanel metric={snapshot.memory} />
-							<DiskPanel metric={snapshot.disk} />
-							<NetworkPanel metric={snapshot.network} />
-						</section>
+						<Tabs defaultValue="overview" className="space-y-4">
+							<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+								<div className="space-y-1">
+									<h2 className="text-lg font-semibold tracking-tight text-slate-50">
+										Dashboard sections
+									</h2>
+									<p className="max-w-2xl text-sm text-slate-400">
+										Switch between the live system overview, process activity,
+										and Mole optimization workflows.
+									</p>
+								</div>
+								<TabsList className="p-1.5">
+									<TabsTrigger
+										className="min-w-24 px-3.5 py-1.5"
+										value="overview"
+									>
+										Overview
+									</TabsTrigger>
+									<TabsTrigger
+										className="min-w-24 px-3.5 py-1.5"
+										value="processes"
+									>
+										Processes
+									</TabsTrigger>
+									<TabsTrigger
+										className="min-w-24 px-3.5 py-1.5"
+										value="optimize"
+									>
+										Optimize
+									</TabsTrigger>
+								</TabsList>
+							</div>
 
-						<ProcessesPanel
-							metric={snapshot.processes}
-							processLimit={processLimit}
-						/>
+							<TabsContent value="overview" className="space-y-4">
+								<section className="grid gap-4 xl:grid-cols-2">
+									<CpuPanel metric={snapshot.cpu} />
+									<MemoryPanel metric={snapshot.memory} />
+									<DiskPanel metric={snapshot.disk} />
+									<NetworkPanel metric={snapshot.network} />
+								</section>
 
-						<CollectorHealthPanel
-							snapshot={snapshot}
-							queryError={query.isError ? getErrorMessage(query.error) : null}
-						/>
+								<CollectorHealthPanel
+									snapshot={snapshot}
+									queryError={
+										query.isError ? getErrorMessage(query.error) : null
+									}
+								/>
+							</TabsContent>
 
-						<MoleWorkflowsPanel />
+							<TabsContent value="processes" className="space-y-4">
+								<ProcessesPanel
+									metric={snapshot.processes}
+									processLimit={processLimit}
+								/>
+							</TabsContent>
+
+							<TabsContent value="optimize" className="space-y-4">
+								<MoleWorkflowsPanel />
+							</TabsContent>
+						</Tabs>
 					</>
 				) : null}
 			</div>
@@ -208,14 +251,14 @@ export function Dashboard() {
 function SummaryMetricCard({ card }: { card: SummaryCard }) {
 	return (
 		<Card>
-			<CardHeader className="pb-3">
+			<CardHeader className="px-4 pb-2 pt-4">
 				<div className="flex items-center justify-between gap-3">
-					<CardTitle className="text-base">{card.title}</CardTitle>
+					<CardTitle className="text-sm">{card.title}</CardTitle>
 					<Badge variant={card.variant}>{card.variant}</Badge>
 				</div>
 			</CardHeader>
-			<CardContent className="space-y-2">
-				<p className="text-3xl font-semibold text-slate-50">{card.value}</p>
+			<CardContent className="space-y-1.5 px-4 pb-4">
+				<p className="text-2xl font-semibold text-slate-50">{card.value}</p>
 				<p className="text-sm text-slate-400">{card.detail}</p>
 			</CardContent>
 		</Card>
@@ -225,18 +268,18 @@ function SummaryMetricCard({ card }: { card: SummaryCard }) {
 function CpuPanel({ metric }: { metric: MonitoringSnapshot["cpu"] }) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>CPU load</CardTitle>
 				<CardDescription>
 					Overall load, user/system split, and per-core activity.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				{!isMetricOk(metric) ? (
 					<MetricUnavailable message={metric.message} />
 				) : (
-					<div className="space-y-5">
-						<div className="grid gap-4 sm:grid-cols-3">
+					<div className="space-y-4">
+						<div className="grid gap-3 sm:grid-cols-3">
 							<MetricStat
 								label="Overall load"
 								value={formatPercent(metric.data.overallLoadPercent)}
@@ -251,11 +294,11 @@ function CpuPanel({ metric }: { metric: MonitoringSnapshot["cpu"] }) {
 							/>
 						</div>
 						<Progress value={metric.data.overallLoadPercent} />
-						<div className="grid gap-3 sm:grid-cols-2">
+						<div className="grid gap-2.5 sm:grid-cols-2">
 							{metric.data.perCoreLoadPercent.map((coreLoad, index) => (
 								<div
 									key={coreLoad}
-									className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3"
+									className="space-y-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-2.5"
 								>
 									<div className="flex items-center justify-between text-sm text-slate-300">
 										<span>Core {index + 1}</span>
@@ -275,18 +318,18 @@ function CpuPanel({ metric }: { metric: MonitoringSnapshot["cpu"] }) {
 function MemoryPanel({ metric }: { metric: MonitoringSnapshot["memory"] }) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Memory pressure</CardTitle>
 				<CardDescription>
 					Live RAM usage, excluding reclaimable macOS cache, with swap and
 					available headroom.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				{!isMetricOk(metric) ? (
 					<MetricUnavailable message={metric.message} />
 				) : (
-					<div className="space-y-5">
+					<div className="space-y-4">
 						<div className="space-y-2">
 							<div className="flex items-center justify-between text-sm text-slate-300">
 								<span>RAM in use</span>
@@ -324,20 +367,20 @@ function MemoryPanel({ metric }: { metric: MonitoringSnapshot["memory"] }) {
 function DiskPanel({ metric }: { metric: MonitoringSnapshot["disk"] }) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Disk capacity and I/O</CardTitle>
 				<CardDescription>
 					Mounted volumes and live read/write operations when available.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				{!isMetricOk(metric) ? (
 					<MetricUnavailable message={metric.message} />
 				) : metric.data.volumes.length === 0 ? (
 					<EmptyState message="No mounted volumes were reported by the collector." />
 				) : (
-					<div className="space-y-5">
-						<div className="grid gap-4 sm:grid-cols-3">
+					<div className="space-y-4">
+						<div className="grid gap-3 sm:grid-cols-3">
 							<MetricStat
 								label="Read ops/sec"
 								value={formatOps(metric.data.io.readOpsPerSecond)}
@@ -351,11 +394,11 @@ function DiskPanel({ metric }: { metric: MonitoringSnapshot["disk"] }) {
 								value={formatOps(metric.data.io.totalOpsPerSecond)}
 							/>
 						</div>
-						<div className="space-y-3">
+						<div className="space-y-2.5">
 							{metric.data.volumes.slice(0, 4).map((volume) => (
 								<div
 									key={`${volume.mount}-${volume.name}`}
-									className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3"
+									className="space-y-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-2.5"
 								>
 									<div className="flex items-center justify-between gap-3 text-sm text-slate-300">
 										<div>
@@ -389,14 +432,14 @@ function DiskPanel({ metric }: { metric: MonitoringSnapshot["disk"] }) {
 function NetworkPanel({ metric }: { metric: MonitoringSnapshot["network"] }) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Network activity</CardTitle>
 				<CardDescription>
 					Interface identity plus live throughput when the macOS collector
 					exposes stable samples.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				{!isMetricOk(metric) ? (
 					<MetricUnavailable message={metric.message} />
 				) : (
@@ -424,8 +467,8 @@ function NetworkContent({ data }: { data: NetworkSnapshot }) {
 	);
 
 	return (
-		<div className="space-y-4">
-			<div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+		<div className="space-y-3">
+			<div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<p className="text-base font-medium text-slate-100">
@@ -440,7 +483,7 @@ function NetworkContent({ data }: { data: NetworkSnapshot }) {
 						{hasLiveRates ? "stable sample" : "warming up"}
 					</Badge>
 				</div>
-				<div className="mt-4 grid gap-4 sm:grid-cols-2">
+				<div className="mt-3 grid gap-3 sm:grid-cols-2">
 					<MetricStat
 						label="Download"
 						value={formatRate(defaultInterface.receivedBytesPerSecond)}
@@ -453,7 +496,7 @@ function NetworkContent({ data }: { data: NetworkSnapshot }) {
 			</div>
 
 			{!hasLiveRates ? (
-				<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+				<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100">
 					The current macOS collector can identify interfaces immediately, but
 					byte-per-second throughput may need an additional sample before it
 					stabilizes.
@@ -464,7 +507,7 @@ function NetworkContent({ data }: { data: NetworkSnapshot }) {
 				{data.interfaces.slice(0, 4).map((networkInterface) => (
 					<div
 						key={networkInterface.name}
-						className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"
+						className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3.5 py-2.5 text-sm"
 					>
 						<div>
 							<p className="font-medium text-slate-100">
@@ -494,19 +537,19 @@ function ProcessesPanel({
 }) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Process activity</CardTitle>
 				<CardDescription>
 					Top processes by CPU, including PID, memory usage, and owner.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				{!isMetricOk(metric) ? (
 					<MetricUnavailable message={metric.message} />
 				) : metric.data.list.length === 0 ? (
 					<EmptyState message="The collector did not return any running processes." />
 				) : (
-					<div className="space-y-4">
+					<div className="space-y-3">
 						<div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
 							<p>
 								Showing the top {metric.data.list.length} of {metric.data.total}{" "}
@@ -514,7 +557,7 @@ function ProcessesPanel({
 							</p>
 							<Badge variant="secondary">limit {processLimit}</Badge>
 						</div>
-						<ScrollArea className="h-104 rounded-xl border border-slate-800">
+						<ScrollArea className="h-[min(58vh,34rem)] min-h-72 rounded-xl border border-slate-800">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -587,18 +630,18 @@ function CollectorHealthPanel({
 
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Collector health</CardTitle>
 				<CardDescription>
 					Each panel stays resilient to partial collector failures instead of
 					crashing the renderer.
 				</CardDescription>
 			</CardHeader>
-			<CardContent className="space-y-3">
+			<CardContent className="space-y-2.5 px-5 pb-5">
 				{metricRows.map(({ label, metric }) => (
 					<div
 						key={label}
-						className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"
+						className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3.5 py-2.5 text-sm"
 					>
 						<div>
 							<p className="font-medium text-slate-100">{label}</p>
@@ -613,7 +656,7 @@ function CollectorHealthPanel({
 				))}
 
 				{queryError ? (
-					<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+					<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
 						The last live refresh failed, so the dashboard is still showing the
 						previous sample: {queryError}
 					</p>
@@ -649,13 +692,13 @@ function QueryErrorState({
 }) {
 	return (
 		<Card className="border-rose-400/30 bg-rose-400/10">
-			<CardHeader>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
 				<CardTitle>Unable to reach the monitoring bridge</CardTitle>
 				<CardDescription className="text-rose-100/80">
 					{message}
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-5 pb-5">
 				<Button variant="outline" onClick={onRetry}>
 					Try again
 				</Button>
@@ -685,7 +728,7 @@ function LoadingState() {
 			<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
 				{LOADING_SUMMARY_CARD_KEYS.map((key) => (
 					<Card key={key}>
-						<CardContent className="space-y-3 p-6 animate-pulse">
+						<CardContent className="animate-pulse space-y-3 px-4 pb-4 pt-4">
 							<div className="h-4 w-24 rounded bg-slate-800" />
 							<div className="h-8 w-32 rounded bg-slate-800" />
 							<div className="h-4 w-full rounded bg-slate-900" />
@@ -693,10 +736,10 @@ function LoadingState() {
 					</Card>
 				))}
 			</section>
-			<section className="grid gap-6 xl:grid-cols-2">
+			<section className="grid gap-4 xl:grid-cols-2">
 				{LOADING_PANEL_KEYS.map((key) => (
 					<Card key={key}>
-						<CardContent className="space-y-3 p-6 animate-pulse">
+						<CardContent className="animate-pulse space-y-3 px-5 pb-5 pt-5">
 							<div className="h-5 w-40 rounded bg-slate-800" />
 							<div className="h-4 w-64 rounded bg-slate-900" />
 							<div className="h-24 rounded-xl bg-slate-900" />
@@ -710,7 +753,7 @@ function LoadingState() {
 
 function MetricUnavailable({ message }: { message: string }) {
 	return (
-		<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+		<p className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100">
 			{message}
 		</p>
 	);
@@ -718,7 +761,7 @@ function MetricUnavailable({ message }: { message: string }) {
 
 function EmptyState({ message }: { message: string }) {
 	return (
-		<p className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
+		<p className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-400">
 			{message}
 		</p>
 	);
@@ -726,11 +769,11 @@ function EmptyState({ message }: { message: string }) {
 
 function MetricStat({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+		<div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
 				{label}
 			</p>
-			<p className="mt-2 text-2xl font-semibold text-slate-50">{value}</p>
+			<p className="mt-1.5 text-2xl font-semibold text-slate-50">{value}</p>
 		</div>
 	);
 }

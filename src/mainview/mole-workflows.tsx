@@ -49,8 +49,8 @@ export function MoleWorkflowsPanel() {
 
 	return (
 		<Card>
-			<CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
-				<div className="space-y-2">
+			<CardHeader className="gap-2 px-5 pb-3 pt-5 lg:flex-row lg:items-start lg:justify-between">
+				<div className="space-y-1.5">
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge variant="secondary">Wave 3 workflows</Badge>
 						<Badge variant={isInstalled ? "success" : "warning"}>
@@ -84,9 +84,9 @@ export function MoleWorkflowsPanel() {
 					{statusQuery.isFetching ? "Refreshing Mole…" : "Refresh Mole status"}
 				</Button>
 			</CardHeader>
-			<CardContent className="space-y-6">
+			<CardContent className="space-y-4 px-5 pb-5">
 				{statusQuery.isPending ? (
-					<p className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
+					<p className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-400">
 						Checking whether the `mo` CLI is available…
 					</p>
 				) : null}
@@ -99,17 +99,19 @@ export function MoleWorkflowsPanel() {
 				) : null}
 
 				{statusQuery.data && !statusQuery.data.availability.isInstalled ? (
-					<div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+					<div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3.5 text-sm leading-5 text-amber-100">
 						<p className="font-medium">Mole is not installed on PATH.</p>
-						<p className="mt-2">{statusQuery.data.availability.installHint}</p>
-						<p className="mt-3 rounded-xl border border-amber-300/20 bg-slate-950/60 px-3 py-2 font-mono text-xs text-amber-50">
+						<p className="mt-1.5">
+							{statusQuery.data.availability.installHint}
+						</p>
+						<p className="mt-2.5 rounded-xl border border-amber-300/20 bg-slate-950/60 px-3 py-2 font-mono text-xs text-amber-50">
 							{statusQuery.data.availability.installCommand}
 						</p>
 					</div>
 				) : null}
 
 				{statusQuery.data?.summary ? (
-					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+					<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
 						<StatusStat
 							label="Health"
 							value={statusQuery.data.summary.healthLabel ?? "Unknown"}
@@ -133,7 +135,7 @@ export function MoleWorkflowsPanel() {
 					<InlineMessage variant="warning" message={statusQuery.data.error} />
 				) : null}
 
-				<div className="grid gap-4 xl:grid-cols-2">
+				<div className="grid gap-3 xl:grid-cols-2">
 					{MOLE_WORKFLOWS.map((workflow) => (
 						<WorkflowCard
 							key={workflow.id}
@@ -211,9 +213,9 @@ function WorkflowCard({
 	onRun: (mode: MoleWorkflowMode) => void;
 }) {
 	return (
-		<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+		<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<div className="flex items-start justify-between gap-3">
-				<div className="space-y-2">
+				<div className="space-y-1.5">
 					<div className="flex flex-wrap items-center gap-2">
 						<p className="text-base font-medium text-slate-50">
 							{workflow.title}
@@ -223,14 +225,14 @@ function WorkflowCard({
 							<Badge variant="warning">Preview first</Badge>
 						) : null}
 					</div>
-					<p className="text-sm leading-6 text-slate-400">
+					<p className="text-sm leading-5 text-slate-400">
 						{workflow.description}
 					</p>
 				</div>
 				{running && busy ? <Badge variant="secondary">Running…</Badge> : null}
 			</div>
 
-			<div className="mt-4 flex flex-wrap gap-2">
+			<div className="mt-3 flex flex-wrap gap-2">
 				<Button
 					size="sm"
 					onClick={() => onRun("preview")}
@@ -254,7 +256,7 @@ function WorkflowCard({
 
 function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 	return (
-		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<p className="text-base font-medium text-slate-50">
@@ -271,7 +273,7 @@ function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				</Badge>
 			</div>
 
-			<div className="grid gap-3 sm:grid-cols-3">
+			<div className="grid gap-2.5 sm:grid-cols-3">
 				<StatusStat
 					label="Exit code"
 					value={result.exitCode === null ? "n/a" : String(result.exitCode)}
@@ -291,7 +293,7 @@ function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
 					Command output
 				</p>
-				<pre className="max-h-80 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-4 text-xs leading-6 text-slate-200 whitespace-pre-wrap wrap-break-word">
+				<pre className="max-h-72 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 text-slate-200 whitespace-pre-wrap wrap-break-word">
 					{result.combinedOutput || "No command output was captured."}
 				</pre>
 			</div>
@@ -310,8 +312,8 @@ function InlineMessage({
 		<p
 			className={
 				variant === "warning"
-					? "rounded-xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100"
-					: "rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100"
+					? "rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100"
+					: "rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm leading-5 text-rose-100"
 			}
 		>
 			{message}
@@ -321,11 +323,11 @@ function InlineMessage({
 
 function StatusStat({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+		<div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3.5">
 			<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
 				{label}
 			</p>
-			<p className="mt-2 text-base font-medium text-slate-100">{value}</p>
+			<p className="mt-1.5 text-base font-medium text-slate-100">{value}</p>
 		</div>
 	);
 }
