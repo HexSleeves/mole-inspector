@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-
+import type { ReactNode } from "react";
 import {
-	type MonitoringSnapshot,
 	isMetricOk,
+	type MetricResult,
+	type MonitoringSnapshot,
 	type NetworkInterfaceSnapshot,
 	type NetworkSnapshot,
 	type ProcessSnapshot,
 } from "../shared/monitoring";
-import type { ReactNode } from "react";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import {
@@ -27,8 +27,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "./components/ui/table";
-import { monitoringBridge } from "./monitoring";
 import { MoleWorkflowsPanel } from "./mole-workflows";
+import { monitoringBridge } from "./monitoring";
 import {
 	PROCESS_LIMIT_OPTIONS,
 	REFRESH_INTERVAL_OPTIONS,
@@ -254,7 +254,7 @@ function CpuPanel({ metric }: { metric: MonitoringSnapshot["cpu"] }) {
 						<div className="grid gap-3 sm:grid-cols-2">
 							{metric.data.perCoreLoadPercent.map((coreLoad, index) => (
 								<div
-									key={`cpu-core-${index}`}
+									key={coreLoad}
 									className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3"
 								>
 									<div className="flex items-center justify-between text-sm text-slate-300">
@@ -278,7 +278,8 @@ function MemoryPanel({ metric }: { metric: MonitoringSnapshot["memory"] }) {
 			<CardHeader>
 				<CardTitle>Memory pressure</CardTitle>
 				<CardDescription>
-					Live RAM and swap utilization with available headroom.
+					Live RAM usage, excluding reclaimable macOS cache, with swap and
+					available headroom.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -305,7 +306,7 @@ function MemoryPanel({ metric }: { metric: MonitoringSnapshot["memory"] }) {
 							</div>
 							<Progress
 								value={metric.data.swapUtilizationPercent}
-								className="[&_[data-slot]]:bg-amber-400"
+								className="**:data-slot:bg-amber-400"
 							/>
 							<p className="text-sm text-slate-400">
 								{formatBytes(metric.data.swapUsedBytes)} used of{" "}
@@ -513,7 +514,7 @@ function ProcessesPanel({
 							</p>
 							<Badge variant="secondary">limit {processLimit}</Badge>
 						</div>
-						<ScrollArea className="h-[26rem] rounded-xl border border-slate-800">
+						<ScrollArea className="h-104 rounded-xl border border-slate-800">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -576,7 +577,7 @@ function CollectorHealthPanel({
 	snapshot: MonitoringSnapshot;
 	queryError: string | null;
 }) {
-	const metricRows = [
+	const metricRows: Array<{ label: string; metric: MetricResult<unknown> }> = [
 		{ label: "CPU", metric: snapshot.cpu },
 		{ label: "Memory", metric: snapshot.memory },
 		{ label: "Disk", metric: snapshot.disk },
@@ -663,12 +664,27 @@ function QueryErrorState({
 	);
 }
 
+const LOADING_SUMMARY_CARD_KEYS = [
+	"loading-summary-cpu",
+	"loading-summary-memory",
+	"loading-summary-disk",
+	"loading-summary-network",
+	"loading-summary-processes",
+] as const;
+
+const LOADING_PANEL_KEYS = [
+	"loading-panel-cpu",
+	"loading-panel-memory",
+	"loading-panel-disk",
+	"loading-panel-network",
+] as const;
+
 function LoadingState() {
 	return (
 		<>
 			<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-				{Array.from({ length: 5 }).map((_, index) => (
-					<Card key={`loading-summary-${index}`}>
+				{LOADING_SUMMARY_CARD_KEYS.map((key) => (
+					<Card key={key}>
 						<CardContent className="space-y-3 p-6 animate-pulse">
 							<div className="h-4 w-24 rounded bg-slate-800" />
 							<div className="h-8 w-32 rounded bg-slate-800" />
@@ -678,8 +694,8 @@ function LoadingState() {
 				))}
 			</section>
 			<section className="grid gap-6 xl:grid-cols-2">
-				{Array.from({ length: 4 }).map((_, index) => (
-					<Card key={`loading-panel-${index}`}>
+				{LOADING_PANEL_KEYS.map((key) => (
+					<Card key={key}>
 						<CardContent className="space-y-3 p-6 animate-pulse">
 							<div className="h-5 w-40 rounded bg-slate-800" />
 							<div className="h-4 w-64 rounded bg-slate-900" />

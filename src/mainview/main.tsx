@@ -13,7 +13,13 @@ const queryClient = new QueryClient({
 	},
 });
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+
+if (!(rootElement instanceof HTMLElement)) {
+	throw new Error('Expected to find the app root element with id "root".');
+}
+
+createRoot(rootElement).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
 			<Dashboard />

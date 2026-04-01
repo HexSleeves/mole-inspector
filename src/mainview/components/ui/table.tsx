@@ -1,8 +1,8 @@
 import type {
 	HTMLAttributes,
 	TableHTMLAttributes,
-	ThHTMLAttributes,
 	TdHTMLAttributes,
+	ThHTMLAttributes,
 } from "react";
 
 import { cn } from "../../lib/utils";

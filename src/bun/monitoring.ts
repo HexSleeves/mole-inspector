@@ -13,6 +13,7 @@ import {
 } from "../shared/monitoring";
 
 const MAX_PROCESS_LIMIT = 25;
+type SystemMemoryData = Awaited<ReturnType<typeof si.mem>>;
 
 export async function getMonitoringSnapshot(
 	request: MonitoringRequest = {},
@@ -69,19 +70,50 @@ async function collectCpu(): Promise<CpuSnapshot> {
 
 async function collectMemory(): Promise<MemorySnapshot> {
 	const memory = await si.mem();
-	const utilizationPercent = toPercent(memory.used, memory.total);
+	const purgeableBytes =
+		process.platform === "darwin" ? await readDarwinPurgeableBytes() : 0;
+
+	return buildMemorySnapshot(memory, {
+		platform: process.platform,
+		purgeableBytes,
+	});
+}
+
+export function buildMemorySnapshot(
+	memory: SystemMemoryData,
+	options: {
+		platform?: string;
+		purgeableBytes?: number;
+	} = {},
+): MemorySnapshot {
+	const platform = options.platform ?? process.platform;
+	const purgeableBytes =
+		platform === "darwin" ? Math.max(0, options.purgeableBytes ?? 0) : 0;
+	const reclaimableBytes =
+		platform === "darwin"
+			? Math.max(0, (memory.reclaimable ?? 0) + purgeableBytes)
+			: 0;
+	const usedBytes =
+		platform === "darwin"
+			? clampBytes(memory.used - reclaimableBytes, memory.total)
+			: clampBytes(memory.used, memory.total);
+	const availableBytes =
+		platform === "darwin"
+			? clampBytes(memory.total - usedBytes, memory.total)
+			: clampBytes(memory.available, memory.total);
+	const utilizationPercent = toPercent(usedBytes, memory.total);
 	const swapUtilizationPercent = toPercent(memory.swapused, memory.swaptotal);
 
 	return {
-		totalBytes: memory.total,
-		usedBytes: memory.used,
-		freeBytes: memory.free,
-		availableBytes: memory.available,
-		activeBytes: memory.active,
-		swapTotalBytes: memory.swaptotal,
-		swapUsedBytes: memory.swapused,
+		usedBytes,
+		availableBytes,
 		utilizationPercent,
+		freeBytes: memory.free,
 		swapUtilizationPercent,
+		totalBytes: memory.total,
+		activeBytes: memory.active,
+		swapUsedBytes: memory.swapused,
+		swapTotalBytes: memory.swaptotal,
 	};
 }
 
@@ -176,6 +208,64 @@ function normalizeProcessLimit(limit?: number): number {
 	}
 
 	return Math.max(1, Math.min(MAX_PROCESS_LIMIT, Math.trunc(limit)));
+}
+
+async function readDarwinPurgeableBytes(): Promise<number> {
+	const process = Bun.spawn({
+		cmd: ["vm_stat"],
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [exitCode, stdout] = await Promise.all([
+		process.exited,
+		readProcessOutput(process.stdout),
+	]);
+
+	if (exitCode !== 0) {
+		return 0;
+	}
+
+	return parseDarwinPurgeableBytes(stdout);
+}
+
+function parseDarwinPurgeableBytes(stdout: string): number {
+	const pageSizeMatch = stdout.match(/page size of (\d+) bytes/i);
+	const purgeableMatch = stdout.match(/Pages purgeable:\s+(\d+)\./i);
+
+	if (!pageSizeMatch || !purgeableMatch) {
+		return 0;
+	}
+
+	const pageSize = Number.parseInt(pageSizeMatch[1], 10);
+	const purgeablePages = Number.parseInt(purgeableMatch[1], 10);
+
+	if (!Number.isFinite(pageSize) || !Number.isFinite(purgeablePages)) {
+		return 0;
+	}
+
+	return pageSize * purgeablePages;
+}
+
+async function readProcessOutput(
+	stream: ReadableStream<Uint8Array> | null | undefined,
+): Promise<string> {
+	if (!stream) {
+		return "";
+	}
+
+	try {
+		return await new Response(stream).text();
+	} catch {
+		return "";
+	}
+}
+
+function clampBytes(value: number, total: number): number {
+	if (!Number.isFinite(value)) {
+		return 0;
+	}
+
+	return Math.max(0, Math.min(total, value));
 }
 
 function toPercent(value: number, total: number): number {

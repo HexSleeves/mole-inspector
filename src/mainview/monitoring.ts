@@ -1,15 +1,14 @@
 import { Electroview } from "electrobun/view";
-
-import type {
-	MonitoringRequest,
-	MonitoringRpcSchema,
-	MonitoringSnapshot,
-} from "../shared/monitoring";
 import type {
 	MoleCommandResult,
 	MoleStatusSnapshot,
 	MoleWorkflowRequest,
 } from "../shared/mole";
+import type {
+	MonitoringRequest,
+	MonitoringRpcSchema,
+	MonitoringSnapshot,
+} from "../shared/monitoring";
 
 declare global {
 	interface Window {

@@ -291,7 +291,7 @@ function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
 					Command output
 				</p>
-				<pre className="max-h-80 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-4 text-xs leading-6 text-slate-200 whitespace-pre-wrap break-words">
+				<pre className="max-h-80 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-4 text-xs leading-6 text-slate-200 whitespace-pre-wrap wrap-break-word">
 					{result.combinedOutput || "No command output was captured."}
 				</pre>
 			</div>

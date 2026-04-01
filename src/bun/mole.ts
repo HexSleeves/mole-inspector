@@ -1,14 +1,14 @@
 import {
+	getMoleWorkflowDefinition,
 	MOLE_COMMAND_TIMEOUT_MS,
 	MOLE_INSTALL_COMMAND,
 	MOLE_INSTALL_HINT,
-	getMoleWorkflowDefinition,
+	MOLE_WORKFLOWS,
 	type MoleAvailability,
 	type MoleCommandResult,
 	type MoleStatusSnapshot,
 	type MoleStatusSummary,
 	type MoleWorkflowRequest,
-	MOLE_WORKFLOWS,
 } from "../shared/mole";
 
 type SpawnedProcess = {
@@ -24,6 +24,11 @@ type MoleRuntime = {
 	now: () => Date;
 	timeoutMs: number;
 };
+
+const ANSI_ESCAPE_PATTERN = new RegExp(
+	`${String.fromCharCode(0x1b)}\\[[0-?]*[ -/]*[@-~]`,
+	"g",
+);
 
 const DEFAULT_RUNTIME: MoleRuntime = {
 	which: (command) => Bun.which(command),
@@ -348,7 +353,7 @@ function sanitizeOutput(value: string): string {
 }
 
 function stripAnsi(value: string): string {
-	return value.replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "");
+	return value.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 function getErrorMessage(error: unknown): string {
