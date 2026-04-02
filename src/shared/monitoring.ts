@@ -3,6 +3,11 @@ import type {
 	MoleStatusSnapshot,
 	MoleWorkflowRequest,
 } from "./mole";
+import type {
+	UpdateSettingRequest,
+	UserSettings,
+	WorkflowHistoryRequest,
+} from "./persistence";
 
 export const DEFAULT_PROCESS_LIMIT = 8;
 export const MONITORING_POLL_INTERVAL_MS = 3_000;
@@ -123,6 +128,22 @@ export type MonitoringRpcSchema = {
 			runMoleWorkflow: {
 				params: MoleWorkflowRequest;
 				response: MoleCommandResult;
+			};
+			getUserSettings: {
+				params: Record<string, never>;
+				response: UserSettings;
+			};
+			updateUserSetting: {
+				params: UpdateSettingRequest;
+				response: { ok: boolean };
+			};
+			getWorkflowHistory: {
+				params: WorkflowHistoryRequest;
+				response: MoleCommandResult[];
+			};
+			clearWorkflowHistory: {
+				params: Record<string, never>;
+				response: { ok: boolean };
 			};
 		};
 		messages: Record<string, never>;
