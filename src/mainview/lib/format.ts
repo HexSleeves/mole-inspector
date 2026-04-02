@@ -40,5 +40,6 @@ export function formatOps(opsPerSecond: number | null): string {
 }
 
 export function formatTime(value: string): string {
-	return new Date(value).toLocaleTimeString();
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString();
 }

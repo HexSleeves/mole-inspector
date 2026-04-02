@@ -17,6 +17,8 @@ export const REFRESH_INTERVAL_OPTIONS = [
 	10_000,
 ] as const;
 
+let hasHydrated = false;
+
 type DashboardStore = {
 	processLimit: number;
 	refreshIntervalMs: number;
@@ -45,7 +47,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 		set({ processLimit: limit });
 		monitoringBridge
 			.updateUserSetting({ key: "processLimit", value: String(limit) })
-			.catch(() => {});
+			.catch((err) => console.debug("Failed to persist setting:", err));
 	},
 	setRefreshIntervalMs: (intervalMs) => {
 		set({ refreshIntervalMs: intervalMs });
@@ -54,7 +56,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 				key: "refreshIntervalMs",
 				value: String(intervalMs),
 			})
-			.catch(() => {});
+			.catch((err) => console.debug("Failed to persist setting:", err));
 	},
 	toggleLiveUpdates: () => {
 		const nextValue = !get().liveUpdatesEnabled;
@@ -64,7 +66,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 				key: "liveUpdatesEnabled",
 				value: String(nextValue),
 			})
-			.catch(() => {});
+			.catch((err) => console.debug("Failed to persist setting:", err));
 	},
 }));
 
@@ -78,8 +80,9 @@ export function useHydrateSettings() {
 	});
 
 	useEffect(() => {
-		if (query.data) {
+		if (query.data && !hasHydrated) {
 			hydrateFromSaved(query.data);
+			hasHydrated = true;
 		}
 	}, [query.data, hydrateFromSaved]);
 }

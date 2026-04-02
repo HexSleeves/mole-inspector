@@ -1,5 +1,5 @@
 import {
-	getDb,
+	clearAllWorkflowHistory,
 	getSetting,
 	getWorkflowHistory as dbGetWorkflowHistory,
 	setSetting,
@@ -27,20 +27,20 @@ export function createPersistenceHandlers(
 		readSetting: getSetting,
 		writeSetting: setSetting,
 		readWorkflowHistory: dbGetWorkflowHistory,
-		clearWorkflowHistory: () => {
-			getDb().connection.run("DELETE FROM workflow_history");
-		},
+		clearWorkflowHistory: clearAllWorkflowHistory,
 	},
 ) {
 	return {
 		getUserSettings(): UserSettings {
 			return {
-				processLimit:
-					Number(dependencies.readSetting("processLimit")) ||
+				processLimit: parseNumericSetting(
+					dependencies.readSetting("processLimit"),
 					DEFAULT_PROCESS_LIMIT,
-				refreshIntervalMs:
-					Number(dependencies.readSetting("refreshIntervalMs")) ||
+				),
+				refreshIntervalMs: parseNumericSetting(
+					dependencies.readSetting("refreshIntervalMs"),
 					MONITORING_POLL_INTERVAL_MS,
+				),
 				liveUpdatesEnabled:
 					dependencies.readSetting("liveUpdatesEnabled") !== "false",
 			};
@@ -70,3 +70,12 @@ export const {
 	getWorkflowHistory,
 	clearWorkflowHistory,
 } = createPersistenceHandlers();
+
+function parseNumericSetting(value: string | null, fallback: number): number {
+	if (value === null) {
+		return fallback;
+	}
+
+	const parsed = Number(value);
+	return Number.isNaN(parsed) ? fallback : parsed;
+}

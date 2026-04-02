@@ -107,6 +107,17 @@ describe("AppDatabase", () => {
 		expect(db.getWorkflowHistory()).toEqual([second, first]);
 	});
 
+	test("clearWorkflowHistory removes stored workflow rows", () => {
+		const db = createTestDatabase();
+
+		db.insertWorkflowResult(buildResult({ workflowId: "clean" }));
+		db.insertWorkflowResult(buildResult({ workflowId: "optimize" }));
+
+		db.clearWorkflowHistory();
+
+		expect(db.getWorkflowHistory()).toEqual([]);
+	});
+
 	test("getLatestWorkflowResult returns null when empty", () => {
 		const db = createTestDatabase();
 

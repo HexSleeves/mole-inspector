@@ -45,6 +45,44 @@ describe("createPersistenceHandlers", () => {
 		});
 	});
 
+	test("getUserSettings preserves persisted zero values", () => {
+		const settings = new Map<string, string>([
+			["processLimit", "0"],
+			["refreshIntervalMs", "0"],
+		]);
+		const handlers = createPersistenceHandlers({
+			readSetting: (key) => settings.get(key) ?? null,
+			writeSetting: () => {},
+			readWorkflowHistory: () => [],
+			clearWorkflowHistory: () => {},
+		});
+
+		expect(handlers.getUserSettings()).toEqual({
+			processLimit: 0,
+			refreshIntervalMs: 0,
+			liveUpdatesEnabled: true,
+		});
+	});
+
+	test("getUserSettings falls back for invalid numeric values", () => {
+		const settings = new Map<string, string>([
+			["processLimit", "not-a-number"],
+			["refreshIntervalMs", "NaN"],
+		]);
+		const handlers = createPersistenceHandlers({
+			readSetting: (key) => settings.get(key) ?? null,
+			writeSetting: () => {},
+			readWorkflowHistory: () => [],
+			clearWorkflowHistory: () => {},
+		});
+
+		expect(handlers.getUserSettings()).toEqual({
+			processLimit: DEFAULT_PROCESS_LIMIT,
+			refreshIntervalMs: MONITORING_POLL_INTERVAL_MS,
+			liveUpdatesEnabled: true,
+		});
+	});
+
 	test("updateUserSetting writes the provided key and value", () => {
 		const writes: Array<{ key: string; value: string }> = [];
 		const handlers = createPersistenceHandlers({

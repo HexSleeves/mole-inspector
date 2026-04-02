@@ -47,7 +47,7 @@ export function CpuPanel({ metric }: CpuPanelProps) {
 						<div className="grid gap-2.5 sm:grid-cols-2">
 							{metric.data.perCoreLoadPercent.map((coreLoad, index) => (
 								<div
-									key={coreLoad}
+									key={`core-${index}`}
 									className="space-y-1.5 rounded-xl border border-slate-800 bg-slate-900/60 p-2.5"
 								>
 									<div className="flex items-center justify-between text-sm text-slate-300">

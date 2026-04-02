@@ -183,7 +183,103 @@ export function ExecutionStatusPanel({ execution }: { execution: ActiveMoleExecu
 	);
 }
 
+export function MoleWorkflowStatusNotice({
+	statusMode,
+	activeExecution,
+}: {
+	statusMode: "loading" | "refreshing" | "running" | null;
+	activeExecution?: ActiveMoleExecution | null;
+}) {
+	if (!statusMode) {
+		return null;
+	}
+
+	const message =
+		statusMode === "loading"
+			? "Checking Mole availability before enabling optimization commands."
+			: statusMode === "refreshing"
+				? "Refreshing Mole status while keeping the last health snapshot visible."
+				: activeExecution
+					? `${labelWorkflow(activeExecution.workflowId)} ${labelMode(activeExecution.mode)} command is ${activeExecution.status}. All workflow buttons stay disabled until Mole finishes.`
+					: "A Mole command is in progress. Workflow buttons stay disabled until Mole finishes.";
+
+	return <InlineMessage variant="info">{message}</InlineMessage>;
+}
+
+export function CommandResultHistoryPanel({
+	results,
+	initialExpandedResultIds,
+}: {
+	results: MoleCommandResult[];
+	initialExpandedResultIds?: string[];
+}) {
+	const [expandedResultIds, setExpandedResultIds] = useState<string[]>(
+		() => initialExpandedResultIds ?? getDefaultExpandedResultIds(results),
+	);
+
+	const toggleResult = (resultId: string) => {
+		setExpandedResultIds((previous) =>
+			previous.includes(resultId)
+				? previous.filter((value) => value !== resultId)
+				: [...previous, resultId],
+		);
+	};
+
+	return (
+		<div className="space-y-3">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Recent command results</p>
+				<Badge variant="secondary">{results.length} {results.length === 1 ? "run" : "runs"}</Badge>
+			</div>
+			<div className="space-y-2">
+				{results.map((result, index) => {
+					const resultKey = getCommandResultKey(result);
+					const resultDomId = getCommandResultDomId(result);
+					const isExpanded = expandedResultIds.includes(resultKey);
+					const status = getCommandResultStatus(result);
+
+					return (
+						<div key={resultKey} className="rounded-2xl border border-slate-800 bg-slate-900/60">
+							<button
+								type="button"
+								className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left"
+								onClick={() => toggleResult(resultKey)}
+								aria-expanded={isExpanded}
+								aria-controls={resultDomId}
+							>
+								<div className="space-y-1">
+									<div className="flex flex-wrap items-center gap-2">
+										{index === 0 ? <Badge variant="secondary">Most recent</Badge> : null}
+										<p className="font-medium text-slate-100">{labelWorkflow(result.workflowId)} · {labelMode(result.mode)}</p>
+										<Badge variant={status.variant}>{status.label}</Badge>
+									</div>
+									<p className="text-xs text-slate-500">{result.command.join(" ")} · finished {formatTime(result.finishedAt)}</p>
+								</div>
+								<div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+									<span>{formatDuration(result.durationMs)}</span>
+									<span className="rounded-full border border-slate-700 px-2 py-1">{isExpanded ? "Hide details" : "Show details"}</span>
+								</div>
+							</button>
+
+							{isExpanded ? (
+								<div id={resultDomId} className="space-y-3 border-t border-slate-800 px-4 pb-4 pt-3">
+									<CommandResultPanel result={result} />
+								</div>
+							) : null}
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
 export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
+	const hasStdout = Boolean(result.stdout.trim());
+	const hasStderr = Boolean(result.stderr.trim());
+	const showCombinedOutput = !hasStdout && !hasStderr && Boolean(result.combinedOutput);
+	const hasWarnings = result.ok && hasStderr;
+
 	return (
 		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -199,11 +295,29 @@ export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				<CompactMetricStat label="Completed" value={formatTime(result.finishedAt)} />
 			</div>
 			{result.error ? <InlineMessage variant="error">{result.error}</InlineMessage> : null}
+			{hasWarnings ? <InlineMessage variant="warning">Command completed, but Mole emitted stderr output. Review the warning output below.</InlineMessage> : null}
 			{result.ok && result.outputState === "empty" ? <InlineMessage variant="success">Command completed successfully and did not emit stdout or stderr for this run.</InlineMessage> : null}
-			<div className="space-y-2">
-				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Terminal output</p>
-				<pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 text-slate-200">{result.combinedOutput || "No terminal output for this run."}</pre>
-			</div>
+			{hasStdout ? <CommandOutputBlock label="Standard output" output={result.stdout} /> : null}
+			{hasStderr ? <CommandOutputBlock label="Standard error" output={result.stderr} accentClassName="text-amber-100" /> : null}
+			{showCombinedOutput ? <CommandOutputBlock label="Terminal output" output={result.combinedOutput} /> : null}
+			{!hasStdout && !hasStderr && !showCombinedOutput && result.outputState !== "empty" ? <CommandOutputBlock label="Terminal output" output="No terminal output for this run." /> : null}
+		</div>
+	);
+}
+
+function CommandOutputBlock({
+	label,
+	output,
+	accentClassName = "text-slate-200",
+}: {
+	label: string;
+	output: string;
+	accentClassName?: string;
+}) {
+	return (
+		<div className="space-y-2">
+			<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{label}</p>
+			<pre className={`max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 ${accentClassName}`}>{output}</pre>
 		</div>
 	);
 }
@@ -236,4 +350,32 @@ function formatWorkflowCommand(workflowId: MoleWorkflowId, mode: MoleWorkflowMod
 	const workflow = MOLE_WORKFLOWS.find((candidate) => candidate.id === workflowId);
 	if (!workflow) return `mo ${workflowId}`;
 	return ["mo", ...(mode === "preview" ? workflow.previewArgs : workflow.runArgs)].join(" ");
+}
+
+function getCommandResultKey(result: MoleCommandResult) {
+	return [result.workflowId, result.mode, result.startedAt, result.finishedAt].join("-");
+}
+
+function getDefaultExpandedResultIds(results: MoleCommandResult[]) {
+	return results[0] ? [getCommandResultKey(results[0])] : [];
+}
+
+function getCommandResultDomId(result: MoleCommandResult) {
+	return `mole-result-${getCommandResultKey(result).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function getCommandResultStatus(result: MoleCommandResult) {
+	if (!result.ok) {
+		return { label: "failed", variant: "destructive" as const };
+	}
+
+	if (result.stderr.trim()) {
+		return { label: "completed with warnings", variant: "warning" as const };
+	}
+
+	return { label: "completed", variant: "success" as const };
+}
+
+function formatDuration(durationMs: number) {
+	return `${(durationMs / 1000).toFixed(1)}s`;
 }

@@ -60,7 +60,11 @@ export async function runMoleWorkflowWithPersistence(
 		insertWorkflowResult,
 ): Promise<MoleCommandResult> {
 	const result = await runMoleWorkflowWith(request, runtime);
-	persistWorkflowResult(result);
+	try {
+		await Promise.resolve(persistWorkflowResult(result));
+	} catch {
+		// ignore persistence failures so successful workflow execution still returns
+	}
 	return result;
 }
 

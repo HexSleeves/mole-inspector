@@ -121,6 +121,32 @@ test("runMoleWorkflowWithPersistence stores the computed workflow result", async
 	}
 });
 
+test("runMoleWorkflowWithPersistence ignores persistence failures", async () => {
+	const result = await runMoleWorkflowWithPersistence(
+		{
+			workflowId: "clean",
+			mode: "preview",
+		},
+		{
+			which: () => "/opt/homebrew/bin/mo",
+			spawn: () => ({
+				exited: Promise.resolve(0),
+				stdout: textStream("saved output\n"),
+				stderr: textStream(""),
+				kill: () => {},
+			}),
+			now: fixedClock(),
+			timeoutMs: 5_000,
+		},
+		() => {
+			throw new Error("db unavailable");
+		},
+	);
+
+	expect(result.ok).toBe(true);
+	expect(result.combinedOutput).toBe("saved output");
+});
+
 test("runMoleWorkflowWith marks successful apply runs with no terminal output", async () => {
 	const result = await runMoleWorkflowWith(
 		{

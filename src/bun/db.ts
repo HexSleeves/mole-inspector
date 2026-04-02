@@ -100,6 +100,7 @@ export class AppDatabase {
 		unknown,
 		InsertWorkflowParams
 	>;
+	private readonly clearWorkflowHistoryStatement: Statement<unknown, []>;
 	private readonly workflowHistoryStatement: Statement<WorkflowHistoryRow, [number]>;
 	private readonly latestWorkflowResultStatement: Statement<WorkflowHistoryRow, []>;
 
@@ -135,6 +136,9 @@ export class AppDatabase {
 			)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`);
+		this.clearWorkflowHistoryStatement = connection.prepare(
+			"DELETE FROM workflow_history",
+		);
 		this.workflowHistoryStatement = connection.prepare(
 			`${WORKFLOW_RESULT_COLUMNS} ORDER BY id DESC LIMIT ?`,
 		);
@@ -146,6 +150,7 @@ export class AppDatabase {
 	close(force = false): void {
 		this.latestWorkflowResultStatement.finalize();
 		this.workflowHistoryStatement.finalize();
+		this.clearWorkflowHistoryStatement.finalize();
 		this.insertWorkflowResultStatement.finalize();
 		this.setSettingStatement.finalize();
 		this.getSettingStatement.finalize();
@@ -178,6 +183,10 @@ export class AppDatabase {
 		);
 
 		return Number(inserted.lastInsertRowid);
+	}
+
+	clearWorkflowHistory(): void {
+		this.clearWorkflowHistoryStatement.run();
 	}
 
 	getWorkflowHistory(limit = 20): MoleCommandResult[] {
@@ -230,6 +239,10 @@ export function setSetting(key: string, value: string): void {
 
 export function insertWorkflowResult(result: MoleCommandResult): number {
 	return getDb().insertWorkflowResult(result);
+}
+
+export function clearAllWorkflowHistory(): void {
+	getDb().clearWorkflowHistory();
 }
 
 export function getWorkflowHistory(limit = 20): MoleCommandResult[] {
