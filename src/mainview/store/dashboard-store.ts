@@ -1,5 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { create } from "zustand";
 
+import { monitoringBridge } from "../monitoring";
+import type { UserSettings } from "../../shared/persistence";
 import {
 	DEFAULT_PROCESS_LIMIT,
 	MONITORING_POLL_INTERVAL_MS,
@@ -13,21 +17,72 @@ export const REFRESH_INTERVAL_OPTIONS = [
 	10_000,
 ] as const;
 
+let hasHydrated = false;
+
 type DashboardStore = {
 	processLimit: number;
 	refreshIntervalMs: number;
 	liveUpdatesEnabled: boolean;
+	hydrateFromSaved: (saved: Partial<UserSettings>) => void;
 	setProcessLimit: (limit: number) => void;
 	setRefreshIntervalMs: (intervalMs: number) => void;
 	toggleLiveUpdates: () => void;
 };
 
-export const useDashboardStore = create<DashboardStore>((set) => ({
+export const useDashboardStore = create<DashboardStore>((set, get) => ({
 	processLimit: DEFAULT_PROCESS_LIMIT,
 	refreshIntervalMs: MONITORING_POLL_INTERVAL_MS,
 	liveUpdatesEnabled: true,
-	setProcessLimit: (limit) => set({ processLimit: limit }),
-	setRefreshIntervalMs: (intervalMs) => set({ refreshIntervalMs: intervalMs }),
-	toggleLiveUpdates: () =>
-		set((state) => ({ liveUpdatesEnabled: !state.liveUpdatesEnabled })),
+	hydrateFromSaved: (saved) =>
+		set({
+			...(saved.processLimit != null && { processLimit: saved.processLimit }),
+			...(saved.refreshIntervalMs != null && {
+				refreshIntervalMs: saved.refreshIntervalMs,
+			}),
+			...(saved.liveUpdatesEnabled != null && {
+				liveUpdatesEnabled: saved.liveUpdatesEnabled,
+			}),
+		}),
+	setProcessLimit: (limit) => {
+		set({ processLimit: limit });
+		monitoringBridge
+			.updateUserSetting({ key: "processLimit", value: String(limit) })
+			.catch((err) => console.debug("Failed to persist setting:", err));
+	},
+	setRefreshIntervalMs: (intervalMs) => {
+		set({ refreshIntervalMs: intervalMs });
+		monitoringBridge
+			.updateUserSetting({
+				key: "refreshIntervalMs",
+				value: String(intervalMs),
+			})
+			.catch((err) => console.debug("Failed to persist setting:", err));
+	},
+	toggleLiveUpdates: () => {
+		const nextValue = !get().liveUpdatesEnabled;
+		set({ liveUpdatesEnabled: nextValue });
+		monitoringBridge
+			.updateUserSetting({
+				key: "liveUpdatesEnabled",
+				value: String(nextValue),
+			})
+			.catch((err) => console.debug("Failed to persist setting:", err));
+	},
 }));
+
+export function useHydrateSettings() {
+	const hydrateFromSaved = useDashboardStore((state) => state.hydrateFromSaved);
+	const query = useQuery({
+		queryKey: ["user-settings"],
+		queryFn: () => monitoringBridge.getUserSettings(),
+		staleTime: Infinity,
+		retry: 1,
+	});
+
+	useEffect(() => {
+		if (query.data && !hasHydrated) {
+			hydrateFromSaved(query.data);
+			hasHydrated = true;
+		}
+	}, [query.data, hydrateFromSaved]);
+}

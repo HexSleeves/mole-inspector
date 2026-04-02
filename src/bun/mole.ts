@@ -10,6 +10,7 @@ import {
 	type MoleStatusSummary,
 	type MoleWorkflowRequest,
 } from "../shared/mole";
+import { insertWorkflowResult } from "./db";
 
 type SpawnedProcess = {
 	exited: Promise<number>;
@@ -49,7 +50,22 @@ export async function getMoleStatus(): Promise<MoleStatusSnapshot> {
 export async function runMoleWorkflow(
 	request: MoleWorkflowRequest,
 ): Promise<MoleCommandResult> {
-	return runMoleWorkflowWith(request, DEFAULT_RUNTIME);
+	return runMoleWorkflowWithPersistence(request, DEFAULT_RUNTIME);
+}
+
+export async function runMoleWorkflowWithPersistence(
+	request: MoleWorkflowRequest,
+	runtime: MoleRuntime,
+	persistWorkflowResult: (result: MoleCommandResult) => unknown =
+		insertWorkflowResult,
+): Promise<MoleCommandResult> {
+	const result = await runMoleWorkflowWith(request, runtime);
+	try {
+		await Promise.resolve(persistWorkflowResult(result));
+	} catch {
+		// ignore persistence failures so successful workflow execution still returns
+	}
+	return result;
 }
 
 export async function getMoleStatusWith(

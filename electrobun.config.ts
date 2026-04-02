@@ -6,6 +6,9 @@ export default {
 		identifier: "dev.electrobun.macossystemoptimizer",
 		version: "0.0.1",
 	},
+	runtime: {
+		exitOnLastWindowClosed: true,
+	},
 	build: {
 		// Vite builds to dist/, we copy from there
 		copy: {

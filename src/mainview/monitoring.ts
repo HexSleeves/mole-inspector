@@ -5,6 +5,11 @@ import type {
 	MoleWorkflowRequest,
 } from "../shared/mole";
 import type {
+	UpdateSettingRequest,
+	UserSettings,
+	WorkflowHistoryRequest,
+} from "../shared/persistence";
+import type {
 	MonitoringRequest,
 	MonitoringRpcSchema,
 	MonitoringSnapshot,
@@ -20,6 +25,14 @@ declare global {
 			runMoleWorkflow: (
 				request: MoleWorkflowRequest,
 			) => Promise<MoleCommandResult>;
+			getUserSettings: () => Promise<UserSettings>;
+			updateUserSetting: (
+				request: UpdateSettingRequest,
+			) => Promise<{ ok: boolean }>;
+			getWorkflowHistory: (
+				request: WorkflowHistoryRequest,
+			) => Promise<MoleCommandResult[]>;
+			clearWorkflowHistory: () => Promise<{ ok: boolean }>;
 		};
 	}
 }
@@ -46,5 +59,11 @@ function createMonitoringBridge() {
 		getMoleStatus: () => rpc.requestProxy.getMoleStatus({}),
 		runMoleWorkflow: (request: MoleWorkflowRequest) =>
 			rpc.requestProxy.runMoleWorkflow(request),
+		getUserSettings: () => rpc.requestProxy.getUserSettings({}),
+		updateUserSetting: (request: UpdateSettingRequest) =>
+			rpc.requestProxy.updateUserSetting(request),
+		getWorkflowHistory: (request: WorkflowHistoryRequest) =>
+			rpc.requestProxy.getWorkflowHistory(request),
+		clearWorkflowHistory: () => rpc.requestProxy.clearWorkflowHistory({}),
 	};
 }

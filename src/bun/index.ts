@@ -1,5 +1,7 @@
-import { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
+import Electrobun, { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
+import { MOLE_COMMAND_TIMEOUT_MS } from "../shared/mole";
 import type { MonitoringRpcSchema } from "../shared/monitoring";
+import { closeDb } from "./db";
 import {
 	DEV_SERVER_URL,
 	MAIN_VIEW_URL,
@@ -7,6 +9,12 @@ import {
 } from "./mainViewUrl";
 import { getMoleStatus, runMoleWorkflow } from "./mole";
 import { getMonitoringSnapshot } from "./monitoring";
+import {
+	clearWorkflowHistory,
+	getUserSettings,
+	getWorkflowHistory,
+	updateUserSetting,
+} from "./persistence-handlers";
 
 const ENABLE_HMR = process.env.ELECTROBUN_USE_HMR === "1";
 
@@ -44,10 +52,14 @@ const monitoringRpc = BrowserView.defineRPC<MonitoringRpcSchema>({
 			getMonitoringSnapshot,
 			getMoleStatus,
 			runMoleWorkflow,
+			getUserSettings,
+			updateUserSetting,
+			getWorkflowHistory,
+			clearWorkflowHistory,
 		},
 		messages: {},
 	},
-	maxRequestTime: 15_000,
+	maxRequestTime: MOLE_COMMAND_TIMEOUT_MS + 10_000,
 });
 
 const mainWindow = new BrowserWindow({
@@ -60,6 +72,10 @@ const mainWindow = new BrowserWindow({
 		x: 200,
 		y: 120,
 	},
+});
+
+Electrobun.events.on("before-quit", async () => {
+	closeDb();
 });
 
 void mainWindow;

@@ -4,6 +4,7 @@ import {
 	getMoleStatusWith,
 	parseMoleStatusSummary,
 	runMoleWorkflowWith,
+	runMoleWorkflowWithPersistence,
 } from "./mole";
 
 describe("parseMoleStatusSummary", () => {
@@ -85,6 +86,65 @@ test("runMoleWorkflowWith uses the dry-run command for preview mode", async () =
 	expect(command).toEqual(["mo", "clean", "--dry-run"]);
 	expect(result.ok).toBe(true);
 	expect(result.combinedOutput).toBe("preview ok");
+});
+
+test("runMoleWorkflowWithPersistence stores the computed workflow result", async () => {
+	let persistedResultJson: string | null = null;
+
+	const result = await runMoleWorkflowWithPersistence(
+		{
+			workflowId: "clean",
+			mode: "preview",
+		},
+		{
+			which: () => "/opt/homebrew/bin/mo",
+			spawn: () => ({
+				exited: Promise.resolve(0),
+				stdout: textStream("saved output\n"),
+				stderr: textStream(""),
+				kill: () => {},
+			}),
+			now: fixedClock(),
+			timeoutMs: 5_000,
+		},
+		(value) => {
+			persistedResultJson = JSON.stringify(value);
+		},
+	);
+
+	if (persistedResultJson === null) {
+		throw new Error("Expected workflow result to be persisted.");
+	}
+
+	if (persistedResultJson !== JSON.stringify(result)) {
+		throw new Error("Persisted workflow result did not match the computed result.");
+	}
+});
+
+test("runMoleWorkflowWithPersistence ignores persistence failures", async () => {
+	const result = await runMoleWorkflowWithPersistence(
+		{
+			workflowId: "clean",
+			mode: "preview",
+		},
+		{
+			which: () => "/opt/homebrew/bin/mo",
+			spawn: () => ({
+				exited: Promise.resolve(0),
+				stdout: textStream("saved output\n"),
+				stderr: textStream(""),
+				kill: () => {},
+			}),
+			now: fixedClock(),
+			timeoutMs: 5_000,
+		},
+		() => {
+			throw new Error("db unavailable");
+		},
+	);
+
+	expect(result.ok).toBe(true);
+	expect(result.combinedOutput).toBe("saved output");
 });
 
 test("runMoleWorkflowWith marks successful apply runs with no terminal output", async () => {
