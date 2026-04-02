@@ -122,6 +122,58 @@ export function Dashboard() {
 	);
 }
 
+export function DashboardStatusNotice({
+	mode,
+	lastUpdatedLabel,
+	errorMessage,
+	unavailableMetricCount = 0,
+}: {
+	mode: "initial-loading" | "refreshing" | "stale" | null;
+	lastUpdatedLabel?: string | null;
+	errorMessage?: string | null;
+	unavailableMetricCount?: number;
+}) {
+	if (!mode && unavailableMetricCount === 0) {
+		return null;
+	}
+
+	const warningTone = mode === "stale" || unavailableMetricCount > 0;
+	const title =
+		mode === "initial-loading"
+			? "Collecting the first dashboard sample"
+			: mode === "refreshing"
+				? "Refreshing the dashboard in the background"
+				: mode === "stale"
+					? "Live refresh needs attention"
+					: "Some dashboard sections need attention";
+
+	return (
+		<Card className={warningTone ? "border-amber-400/30 bg-amber-400/10" : "border-sky-400/30 bg-sky-400/10"}>
+			<CardHeader className="gap-1.5 px-5 pb-3 pt-5">
+				<CardTitle>{title}</CardTitle>
+				<CardDescription className={warningTone ? "text-amber-100/85" : "text-sky-100/85"}>
+					{mode === "initial-loading"
+						? "The summary cards and live panels will appear as soon as the monitoring bridge returns its first sample."
+						: mode === "refreshing"
+							? "The last collected sample stays visible while fresh CPU, memory, disk, process, and network data loads."
+							: mode === "stale"
+								? `Still showing the previous sample${lastUpdatedLabel ? ` from ${lastUpdatedLabel}` : ""}.`
+								: "Collector health has degraded for part of this sample."}
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-2.5 px-5 pb-5">
+				{mode === "stale" && errorMessage ? <p className="text-sm leading-5 text-amber-100">{errorMessage}</p> : null}
+				{unavailableMetricCount > 0 ? (
+					<p className="text-sm leading-5 text-amber-100">
+						{unavailableMetricCount} section{unavailableMetricCount === 1 ? " reported" : "s reported"}{" "}
+						collector issues in this sample. Check Collector health for panel-level details.
+					</p>
+				) : null}
+			</CardContent>
+		</Card>
+	);
+}
+
 function ControlGroup({ label, children }: { label: string; children: ReactNode }) {
 	return (
 		<div className="space-y-2">
