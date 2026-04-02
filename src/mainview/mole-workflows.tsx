@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
 	MOLE_WORKFLOWS,
@@ -27,7 +27,6 @@ type ActiveMoleExecution = {
 };
 
 export function MoleWorkflowsPanel() {
-	const [lastResult, setLastResult] = useState<MoleCommandResult | null>(null);
 	const [history, setHistory] = useState<MoleCommandResult[]>([]);
 	const [activeExecution, setActiveExecution] =
 		useState<ActiveMoleExecution | null>(null);
@@ -59,7 +58,6 @@ export function MoleWorkflowsPanel() {
 		},
 		onSuccess: (result) => {
 			setActiveExecution(null);
-			setLastResult(result);
 			setHistory((previous) => [result, ...previous].slice(0, 4));
 			void statusQuery.refetch();
 		},
@@ -72,7 +70,17 @@ export function MoleWorkflowsPanel() {
 	const isInstalled = availability?.isInstalled ?? false;
 	const workflowIsBusy = activeExecution !== null || workflowMutation.isPending;
 	const activeStatusLabel =
-		activeExecution?.status === "queued" ? "Command queued…" : "Command running…";
+		activeExecution?.status === "queued"
+			? "Command queued…"
+			: "Command running…";
+	const workflowStatusMode =
+		!statusQuery.data && statusQuery.isPending
+			? "loading"
+			: activeExecution
+				? "running"
+				: statusQuery.data && statusQuery.isFetching
+					? "refreshing"
+					: null;
 
 	const queueWorkflow = (
 		workflowId: MoleWorkflowDefinition["id"],
@@ -107,8 +115,8 @@ export function MoleWorkflowsPanel() {
 								Health {formatHealth(statusQuery.data.summary.healthScore)}
 							</Badge>
 						) : null}
-							{activeExecution ? (
-								<Badge variant="secondary">{activeStatusLabel}</Badge>
+						{activeExecution ? (
+							<Badge variant="secondary">{activeStatusLabel}</Badge>
 						) : null}
 					</div>
 					<div>
@@ -123,9 +131,13 @@ export function MoleWorkflowsPanel() {
 					size="sm"
 					variant="outline"
 					onClick={() => void statusQuery.refetch()}
-						disabled={statusQuery.isFetching || workflowIsBusy}
+					disabled={statusQuery.isFetching || workflowIsBusy}
 				>
-					{statusQuery.isFetching ? "Refreshing Mole…" : "Refresh Mole status"}
+					{!statusQuery.data && statusQuery.isPending
+						? "Checking Mole…"
+						: statusQuery.isFetching
+							? "Refreshing Mole…"
+							: "Refresh Mole status"}
 				</Button>
 			</CardHeader>
 			<CardContent className="space-y-4 px-5 pb-5">
@@ -179,18 +191,28 @@ export function MoleWorkflowsPanel() {
 					<InlineMessage variant="warning" message={statusQuery.data.error} />
 				) : null}
 
+				<MoleWorkflowStatusNotice
+					statusMode={workflowStatusMode}
+					activeExecution={activeExecution}
+				/>
+
 				<div className="grid gap-3 xl:grid-cols-2">
 					{MOLE_WORKFLOWS.map((workflow) => (
 						<WorkflowCard
 							key={workflow.id}
 							workflow={workflow}
-								busy={workflowIsBusy}
+							busy={workflowIsBusy}
 							disabled={!isInstalled}
-								status={
-									activeExecution?.workflowId === workflow.id
-										? activeExecution.status
-										: null
-								}
+							status={
+								activeExecution?.workflowId === workflow.id
+									? activeExecution.status
+									: null
+							}
+							activeMode={
+								activeExecution?.workflowId === workflow.id
+									? activeExecution.mode
+									: null
+							}
 							onRun={(mode) => {
 								if (
 									mode === "apply" &&
@@ -199,7 +221,7 @@ export function MoleWorkflowsPanel() {
 									return;
 								}
 
-									queueWorkflow(workflow.id, mode);
+								queueWorkflow(workflow.id, mode);
 							}}
 						/>
 					))}
@@ -212,39 +234,12 @@ export function MoleWorkflowsPanel() {
 					/>
 				) : null}
 
-					{activeExecution ? (
-						<ExecutionStatusPanel execution={activeExecution} />
-					) : null}
+				{activeExecution ? (
+					<ExecutionStatusPanel execution={activeExecution} />
+				) : null}
 
-				{lastResult ? <CommandResultPanel result={lastResult} /> : null}
-
-				{history.length > 1 ? (
-					<div className="space-y-3">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-							Recent command results
-						</p>
-						<div className="space-y-2">
-							{history.slice(1).map((result) => (
-								<div
-									key={`${result.workflowId}-${result.mode}-${result.finishedAt}`}
-									className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"
-								>
-									<div>
-										<p className="font-medium text-slate-100">
-											{labelWorkflow(result.workflowId)} ·{" "}
-											{labelMode(result.mode)}
-										</p>
-										<p className="text-slate-500">
-											{formatTime(result.finishedAt)}
-										</p>
-									</div>
-									<Badge variant={result.ok ? "success" : "destructive"}>
-										{result.ok ? "completed" : "failed"}
-									</Badge>
-								</div>
-							))}
-						</div>
-					</div>
+				{history.length > 0 ? (
+							<CommandResultHistoryPanel results={history} />
 				) : null}
 			</CardContent>
 		</Card>
@@ -256,14 +251,29 @@ function WorkflowCard({
 	busy,
 	disabled,
 	status,
+	activeMode,
 	onRun,
 }: {
 	workflow: MoleWorkflowDefinition;
 	busy: boolean;
 	disabled: boolean;
 	status: ActiveMoleExecution["status"] | null;
+	activeMode: MoleWorkflowMode | null;
 	onRun: (mode: MoleWorkflowMode) => void;
 }) {
+	const previewLabel =
+		status && activeMode === "preview"
+			? status === "queued"
+				? "Preview queued…"
+				: "Preview running…"
+			: workflow.previewLabel;
+	const applyLabel =
+		status && activeMode === "apply"
+			? status === "queued"
+				? "Apply queued…"
+				: "Apply running…"
+			: workflow.runLabel;
+
 	return (
 		<div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
 			<div className="flex items-start justify-between gap-3">
@@ -294,7 +304,7 @@ function WorkflowCard({
 					onClick={() => onRun("preview")}
 					disabled={disabled || busy}
 				>
-					{workflow.previewLabel}
+					{previewLabel}
 				</Button>
 				<Button
 					size="sm"
@@ -303,11 +313,34 @@ function WorkflowCard({
 					onClick={() => onRun("apply")}
 					disabled={disabled || busy}
 				>
-					{workflow.runLabel}
+					{applyLabel}
 				</Button>
 			</div>
 		</div>
 	);
+}
+
+export function MoleWorkflowStatusNotice({
+	statusMode,
+	activeExecution,
+}: {
+	statusMode: "loading" | "refreshing" | "running" | null;
+	activeExecution?: ActiveMoleExecution | null;
+}) {
+	if (!statusMode) {
+		return null;
+	}
+
+	const message =
+		statusMode === "loading"
+			? "Checking Mole availability before enabling optimization commands."
+			: statusMode === "refreshing"
+				? "Refreshing Mole status while keeping the last health snapshot visible."
+				: activeExecution
+					? `${labelWorkflow(activeExecution.workflowId)} ${labelMode(activeExecution.mode)} command is ${activeExecution.status}. All workflow buttons stay disabled until Mole finishes.`
+					: "A Mole command is in progress. Workflow buttons stay disabled until Mole finishes.";
+
+	return <InlineMessage variant="info" message={message} />;
 }
 
 export function ExecutionStatusPanel({
@@ -336,30 +369,135 @@ export function ExecutionStatusPanel({
 				</Badge>
 			</div>
 
-			<InlineMessage variant="success" message={message} />
+			<InlineMessage variant="info" message={message} />
+		</div>
+	);
+}
+
+export function CommandResultHistoryPanel({
+	results,
+	initialExpandedResultIds,
+}: {
+	results: MoleCommandResult[];
+	initialExpandedResultIds?: string[];
+}) {
+	const [expandedResultIds, setExpandedResultIds] = useState<string[]>(() =>
+		initialExpandedResultIds ?? getDefaultExpandedResultIds(results),
+	);
+
+	useEffect(() => {
+		const availableResultIds = results.map(getCommandResultKey);
+
+		if (initialExpandedResultIds) {
+			setExpandedResultIds(
+				initialExpandedResultIds.filter((resultId) =>
+					availableResultIds.includes(resultId),
+				),
+			);
+			return;
+		}
+
+		if (availableResultIds.length === 0) {
+			setExpandedResultIds([]);
+			return;
+		}
+
+		const newestResultId = availableResultIds[0];
+		setExpandedResultIds((previous) => [
+			newestResultId,
+			...previous.filter(
+				(resultId) =>
+					resultId !== newestResultId && availableResultIds.includes(resultId),
+			),
+		]);
+	}, [initialExpandedResultIds, results]);
+
+	const toggleResult = (resultId: string) => {
+		setExpandedResultIds((previous) =>
+			previous.includes(resultId)
+				? previous.filter((value) => value !== resultId)
+				: [...previous, resultId],
+		);
+	};
+
+	return (
+		<div className="space-y-3">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+					Recent command results
+				</p>
+				<Badge variant="secondary">
+					{results.length} {results.length === 1 ? "run" : "runs"}
+				</Badge>
+			</div>
+			<div className="space-y-2">
+				{results.map((result, index) => {
+					const resultKey = getCommandResultKey(result);
+					const resultDomId = getCommandResultDomId(result);
+					const isExpanded = expandedResultIds.includes(resultKey);
+					const status = getCommandResultStatus(result);
+
+					return (
+						<div
+							key={resultKey}
+							className="rounded-2xl border border-slate-800 bg-slate-900/60"
+						>
+							<button
+								type="button"
+								className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left"
+									onClick={() => toggleResult(resultKey)}
+								aria-expanded={isExpanded}
+								aria-controls={resultDomId}
+							>
+								<div className="space-y-1">
+									<div className="flex flex-wrap items-center gap-2">
+										{index === 0 ? (
+												<Badge variant="secondary">Most recent</Badge>
+										) : null}
+										<p className="font-medium text-slate-100">
+											{labelWorkflow(result.workflowId)} ·{" "}
+											{labelMode(result.mode)}
+										</p>
+										<Badge variant={status.variant}>{status.label}</Badge>
+									</div>
+									<p className="text-xs text-slate-500">
+										{result.command.join(" ")} · finished{" "}
+										{formatTime(result.finishedAt)}
+									</p>
+								</div>
+								<div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+									<span>{formatDuration(result.durationMs)}</span>
+									<span className="rounded-full border border-slate-700 px-2 py-1">
+											{isExpanded ? "Hide details" : "Show details"}
+									</span>
+								</div>
+							</button>
+
+							{isExpanded ? (
+								<div
+									id={resultDomId}
+									className="space-y-3 border-t border-slate-800 px-4 pb-4 pt-3"
+								>
+									<CommandResultPanel result={result} />
+								</div>
+							) : null}
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
 
 export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
-	return (
-		<div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<p className="text-base font-medium text-slate-50">
-						Latest result · {labelWorkflow(result.workflowId)} ·{" "}
-						{labelMode(result.mode)}
-					</p>
-					<p className="text-sm text-slate-500">
-						{result.command.join(" ")} · finished{" "}
-						{formatTime(result.finishedAt)}
-					</p>
-				</div>
-				<Badge variant={result.ok ? "success" : "destructive"}>
-						{result.ok ? "completed" : "failed"}
-				</Badge>
-			</div>
+	const hasStdout = Boolean(result.stdout.trim());
+	const hasStderr = Boolean(result.stderr.trim());
+	const showCombinedOutput =
+		!hasStdout && !hasStderr && Boolean(result.combinedOutput);
+	const hasWarnings = result.ok && hasStderr;
 
+	return (
+		<div className="space-y-3">
 			<div className="grid gap-2.5 sm:grid-cols-3">
 				<StatusStat
 					label="Exit code"
@@ -367,7 +505,7 @@ export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				/>
 				<StatusStat
 					label="Duration"
-					value={`${(result.durationMs / 1000).toFixed(1)}s`}
+					value={formatDuration(result.durationMs)}
 				/>
 				<StatusStat label="Completed" value={formatTime(result.finishedAt)} />
 			</div>
@@ -376,21 +514,71 @@ export function CommandResultPanel({ result }: { result: MoleCommandResult }) {
 				<InlineMessage variant="destructive" message={result.error} />
 			) : null}
 
-				{result.ok && result.outputState === "empty" ? (
-					<InlineMessage
-						variant="success"
-						message="Command completed successfully and did not emit stdout or stderr for this run."
-					/>
-				) : null}
+			{hasWarnings ? (
+				<InlineMessage
+					variant="warning"
+					message="Command completed, but Mole emitted stderr output. Review the warning output below."
+				/>
+			) : null}
 
-			<div className="space-y-2">
-				<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-						Terminal output
-				</p>
-				<pre className="max-h-72 overflow-auto rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 text-slate-200 whitespace-pre-wrap wrap-break-word">
-						{result.combinedOutput || "No terminal output for this run."}
-				</pre>
-			</div>
+			{result.ok && result.outputState === "empty" ? (
+				<InlineMessage
+					variant="success"
+					message="Command completed successfully and did not emit stdout or stderr for this run."
+				/>
+			) : null}
+
+			{hasStdout ? (
+				<CommandOutputBlock label="Standard output" output={result.stdout} />
+			) : null}
+
+			{hasStderr ? (
+				<CommandOutputBlock
+					label="Standard error"
+					output={result.stderr}
+					accentClassName="text-amber-100"
+				/>
+			) : null}
+
+			{showCombinedOutput ? (
+				<CommandOutputBlock
+					label="Terminal output"
+					output={result.combinedOutput}
+				/>
+			) : null}
+
+			{!hasStdout &&
+			!hasStderr &&
+			!showCombinedOutput &&
+			result.outputState !== "empty" ? (
+				<CommandOutputBlock
+					label="Terminal output"
+					output="No terminal output for this run."
+				/>
+			) : null}
+		</div>
+	);
+}
+
+function CommandOutputBlock({
+	label,
+	output,
+	accentClassName = "text-slate-200",
+}: {
+	label: string;
+	output: string;
+	accentClassName?: string;
+}) {
+	return (
+		<div className="space-y-2">
+			<p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+				{label}
+			</p>
+			<pre
+				className={`max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs leading-5 wrap-break-word ${accentClassName}`}
+			>
+				{output}
+			</pre>
 		</div>
 	);
 }
@@ -399,17 +587,19 @@ function InlineMessage({
 	variant,
 	message,
 }: {
-	variant: "warning" | "destructive" | "success";
+	variant: "info" | "warning" | "destructive" | "success";
 	message: string;
 }) {
 	return (
 		<p
 			className={
-				variant === "warning"
-					? "rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100"
-					: variant === "success"
-						? "rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm leading-5 text-emerald-100"
-					: "rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm leading-5 text-rose-100"
+				variant === "info"
+					? "rounded-xl border border-sky-400/20 bg-sky-400/10 p-3 text-sm leading-5 text-sky-100"
+					: variant === "warning"
+						? "rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm leading-5 text-amber-100"
+						: variant === "success"
+							? "rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm leading-5 text-emerald-100"
+							: "rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm leading-5 text-rose-100"
 			}
 		>
 			{message}
@@ -471,7 +661,9 @@ function formatWorkflowCommand(
 	workflowId: MoleWorkflowId,
 	mode: MoleWorkflowMode,
 ) {
-	const workflow = MOLE_WORKFLOWS.find((candidate) => candidate.id === workflowId);
+	const workflow = MOLE_WORKFLOWS.find(
+		(candidate) => candidate.id === workflowId,
+	);
 	if (!workflow) {
 		return `mo ${workflowId}`;
 	}
@@ -490,4 +682,46 @@ function getErrorMessage(error: unknown): string {
 	}
 
 	return "Unknown Mole bridge error.";
+}
+
+function getCommandResultKey(result: MoleCommandResult) {
+	return [
+		result.workflowId,
+		result.mode,
+		result.startedAt,
+		result.finishedAt,
+	].join("-");
+}
+
+function getDefaultExpandedResultIds(results: MoleCommandResult[]) {
+	return results[0] ? [getCommandResultKey(results[0])] : [];
+}
+
+function getCommandResultDomId(result: MoleCommandResult) {
+	return `mole-result-${getCommandResultKey(result).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function getCommandResultStatus(result: MoleCommandResult) {
+	if (!result.ok) {
+		return {
+			label: "failed",
+			variant: "destructive" as const,
+		};
+	}
+
+	if (result.stderr.trim()) {
+		return {
+			label: "completed with warnings",
+			variant: "warning" as const,
+		};
+	}
+
+	return {
+		label: "completed",
+		variant: "success" as const,
+	};
+}
+
+function formatDuration(durationMs: number) {
+	return `${(durationMs / 1000).toFixed(1)}s`;
 }
